@@ -31,8 +31,6 @@ class Site(OpinionSiteLinear):
             start_date.year) + "&field_opn_issdate_value%5Bmax%5D%5Bdate%5D=" + str(
             end_date.month) + "%2F" + str(end_date.day) + "%2F" + str(
             end_date.year)
-        print(str(start_date) + " -> " + str(end_date))
-        print(self.url)
         self.method = "POST"
         self.parameters = {"page": 0, "view_name": "opn_files_view",
                            "view_display_id": "opn_search_results",
@@ -188,9 +186,24 @@ class Site(OpinionSiteLinear):
                         self.crawled_till = date_obj
                     docket = td.__getitem__(2).text
                     self.cases.append(
-                        {"name": name.strip(), "url": url, "date": date_filed,
-                         "status": status, "docket": docket,
-                         "lower_court": lower_court, })
+                        {
+                         "name": name.strip(),
+                         "url": url,
+                         "date": date_filed,
+                         "status": status,
+                         "docket": docket,
+                         "lower_court": lower_court,
+                         'judge': '',
+                         'citation': '', 'parallel_citation': '',
+                        'summary': '', 'child_court': '',
+                            'adversary_number': '', 'division': '',
+                            'disposition': '', 'cause': '',
+                            'docket_attachment_number': '',
+                            'docket_document_number': '', 'nature_of_suit': '',
+                            'lower_court_number': '', 'lower_court_judge': '',
+                            'author': '', 'per_curiam': '', 'type': '',
+                            'joined_by': '', 'other_date': ''
+                    })
                 i = i + 1
 
         # Set the attribute to the return value from _get_foo()
@@ -237,9 +250,13 @@ class Site(OpinionSiteLinear):
             date_filed = td.__getitem__(0).text
             docket = td.__getitem__(2).text
             self.cases.append(
-                {"name": name.strip(), "url": url, "date": date_filed,
-                    "status": status, "docket": docket,
-                    "lower_court": lower_court, })  # for row in self.html.xpath("//tr[not(th)]"):  #     title = row.xpath("td[2]/a/text()")[0] -------  #     url = row.xpath("td[2]/a/@href")[0] ---------  #     status = self.get_status_from_opinion_title(title) ----  #     docket = row.xpath("td[3]/a/text()")[0] ----  #     date_filed = row.xpath("td[1]/span/text()")[0] ----  #     name = row.xpath("td[4]/text()")[0] ----  #     lower_court = row.xpath("td[4]/span/text()")[0] --------
+                {"name": name.strip(),
+                 "url": url,
+                 "date": date_filed,
+                 "status": status,
+                 "docket": docket,
+                 "lower_court": lower_court,
+            })
 
     def get_status_from_opinion_title(self, title: str) -> str:
         """Status is encoded in opinion's link title
@@ -294,3 +311,12 @@ class Site(OpinionSiteLinear):
 
         self.back_scrape_iterable = make_date_range_tuples(start, end,
             self.days_interval)
+
+    def get_class_name(self):
+        return "ca1.py"
+
+    def get_court_name(self):
+        return 'United States Court of Appeals For the First Circuit'
+
+    def get_court_type(self):
+        return 'federal_appellate'

@@ -1,13 +1,31 @@
+import os
 from abc import abstractmethod
 from datetime import datetime, date, timedelta
 
+import requests
+from bson import ObjectId
 from pymongo import MongoClient
+from typing import Dict, Any
 
+from setuptools import logging
+
+from casemine import constants
+from casemine.DuplicateRecordException import DuplicateRecordException
 from casemine.constants import CRAWL_DATABASE_IP, DATABASE_PORT, DATABASE_NAME, \
-    TEST_COLLECTION, CONFIG_COLLECTION
-
+    TEST_COLLECTION, CONFIG_COLLECTION, PDF_DOWNLOAD_PATH
 
 class CaseMineCrawl:
+
+    mongo1 = MongoClient(constants.CRAWL_DATABASE_IP, constants.DATABASE_PORT)
+    mongo2 = MongoClient(constants.MAIN_DATABASE_IP, constants.DATABASE_PORT)
+
+    # Access databases
+    db1 = mongo1[constants.DATABASE_NAME]
+
+    # Access collections
+    judgements_collection = db1[constants.TEST_COLLECTION]
+    config_collection = db1[constants.CONFIG_COLLECTION]
+
     def __init__(self):
         self.end_date = None
         self.start_date = None
@@ -65,6 +83,19 @@ class CaseMineCrawl:
     def crawling_range(self, start_date: datetime, end_date: datetime) -> int:
         pass
 
+    @abstractmethod
+    def get_court_name(self):
+        pass
+
+    @abstractmethod
+    def get_court_type(self):
+        pass
+
+    @abstractmethod
+    def get_class_name(self):
+        pass
+
+
     @staticmethod
     def get_crawl_config_details(class_name):
         client = MongoClient('mongodb://'+CRAWL_DATABASE_IP+':'+str(DATABASE_PORT)+'/')
@@ -104,6 +135,60 @@ class CaseMineCrawl:
         # Close the MongoDB connection
         client.close()
 
+    @staticmethod
+    def _process_opinion(self, data) -> bool:
+        flag = False
+        url = str(data.get('url'))
+        if url.__eq__(''):
+            return False
+        objId = self._save_opinion(data)
+        contentPdf = self._download_pdf(data, objId)
+        # flag = saveContent(judId, contentPdf)
+        return flag
 
+    @staticmethod
+    def _fetch_duplicate(self, data):
+        # Create query for duplication
+        query_for_duplication = {"pdfUrl": data.get("pdfUrl"), "docket": data.get("docket"),
+                                    "title": data.get("title")}
+        # Find the document
+        duplicate = self.judgements_collection.find_one(query_for_duplication)
+        object_id = None
+        if duplicate is None:
+            # Insert the new document
+            self.judgements_collection.insert_one(data)
 
+            # Retrieve the document just inserted
+            data = self.judgements_collection.find_one(query_for_duplication)
+            object_id = data.get("_id")  # Get the ObjectId from the document
+        else:
+            # Check if the document already exists and has been processed
+            processed = duplicate.get("processed")
+            if processed == 10:
+                raise Exception("Judgment already Exists!")  # Replace with your custom DuplicateRecordException
+            else:
+                object_id = duplicate.get("_id")  # Get the ObjectId from the existing document
+        return object_id
 
+    def download_pdf(self, data, objectId):
+        pdf_url = data.__getitem__('url')
+        year = int(data.__getitem__('year'))
+
+        court_name = self.get_court_name()
+
+        obj_id = str(objectId)
+        download_pdf_path = os.path.join(PDF_DOWNLOAD_PATH, f"{obj_id}.pdf")
+
+        os.makedirs(PDF_DOWNLOAD_PATH, exist_ok=True)
+        try:
+            response = requests.get(pdf_url)
+            response.raise_for_status()
+            with open(download_pdf_path, 'wb') as file:
+                file.write(response.content)
+            self.judgements_collection.update_one({"_id": objectId},
+                                        {"$set": {"processed": 0}})
+        except requests.RequestException as e:
+            print(f"Error while downloading the PDF: {e}")
+            self.judgements_collection.update_many({"_id": objectId}, {
+                "$set": {"processed": 2, "content": ""}})
+        return download_pdf_path
