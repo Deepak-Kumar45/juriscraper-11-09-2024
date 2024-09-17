@@ -42,6 +42,15 @@ class AbstractSite(CaseMineCrawl):
     def crawling_range(self, start_date: datetime, end_date: datetime) -> int:
         pass
 
+    def get_court_name(self):
+        pass
+
+    def get_court_type(self):
+        pass
+
+    def get_class_name(self):
+        pass
+
     def __init__(self, cnt=None, **kwargs):
         super().__init__()
 
@@ -53,8 +62,8 @@ class AbstractSite(CaseMineCrawl):
         self.downloader_executed = False
         self.cookies = {}
         self.proxies = {
-            "http": "p.webshare.io:9999",
-            "https": "p.webshare.io:9999",
+            "http": "46.175.155.107:8800",
+            "https": "46.175.155.107:8800",
         }
         self.cnt = cnt or CaseNameTweaker()
         self.request = {
